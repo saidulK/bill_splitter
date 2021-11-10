@@ -1,3 +1,4 @@
+import 'package:bill_splitter/constants.dart';
 import 'package:bill_splitter/widgets.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -54,7 +55,6 @@ class ItemPageState extends State<ItemPage> with AutomaticKeepAliveClientMixin {
           Expanded(
             child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                color: Colors.white,
                 child: ListView.builder(
                     itemCount: itemList.length,
                     itemBuilder: (context, index) {
@@ -67,16 +67,17 @@ class ItemPageState extends State<ItemPage> with AutomaticKeepAliveClientMixin {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 FloatingActionButton.extended(
+                  backgroundColor: COLOR_BLACK,
                   onPressed: onCalculatePressed,
                   label: Text('Calculate', style: TextStyle(fontSize: 20)),
                 ),
                 FloatingActionButton(
                   onPressed: () => onFloatingButtonPressed(context),
-                  backgroundColor: Colors.white,
+                  backgroundColor: COLOR_BLACK,
                   elevation: 10,
                   child: Icon(
                     Icons.add,
-                    color: Colors.grey,
+                    color: Colors.white,
                     size: 50,
                   ),
                 ),
@@ -107,8 +108,10 @@ class itemRow extends StatefulWidget {
 class itemRowState extends State<itemRow> {
   @override
   Widget build(BuildContext context) {
+    double rowWidth = MediaQuery.of(context).size.width * .4;
+
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       margin: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       height: widget.height,
       decoration: BoxDecoration(
@@ -123,7 +126,7 @@ class itemRowState extends State<itemRow> {
         ],
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text('${widget.item.name}',
@@ -132,7 +135,7 @@ class itemRowState extends State<itemRow> {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500))
           ]),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            contributorRow(widget.item, widget.height / 2, 10),
+            contributorRow(widget.item, widget.height / 2, rowWidth, 10),
             Text('Edit',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500))
           ])
@@ -142,12 +145,12 @@ class itemRowState extends State<itemRow> {
   }
 }
 
-Widget contributorRow(item, rowHeight, verticalPadding) {
+Widget contributorRow(item, rowHeight, rowWidth, verticalPadding) {
   List<Transaction> contributions = item.contributions;
 
   return Container(
     height: rowHeight - verticalPadding,
-    width: 200,
+    width: rowWidth,
     child: ListView.builder(
       scrollDirection: Axis.horizontal,
       itemCount: contributions.length,
@@ -155,13 +158,13 @@ Widget contributorRow(item, rowHeight, verticalPadding) {
         return Container(
           padding: EdgeInsets.only(right: 10),
           child: CircleAvatar(
-            backgroundColor: Colors.pink,
+            backgroundColor: contributions[index].user.userColor[0],
             radius: rowHeight / 2 - verticalPadding,
             child: Text(
               contributions[index].user.name[0].toUpperCase(),
               style: TextStyle(
                   fontSize: 20,
-                  color: Colors.white,
+                  color: contributions[index].user.userColor[1],
                   fontWeight: FontWeight.bold),
             ),
           ),
@@ -320,6 +323,7 @@ class addItemCardState extends State<addItemCard> {
               padding: EdgeInsets.only(top: verticalPadding),
               child: Center(
                 child: FloatingActionButton.extended(
+                    backgroundColor: COLOR_BLACK,
                     onPressed: () => onConfirmPressed(),
                     label: Text(
                       "Confirm",
@@ -546,13 +550,13 @@ class ContributorTabState extends State<ContributorTab> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             CircleAvatar(
-              backgroundColor: Colors.pink,
+              backgroundColor: widget.user.userColor[0],
               radius: widget.rowHeight / 2 - 10,
               child: Text(
                 widget.user.name[0].toUpperCase(),
                 style: TextStyle(
                     fontSize: 15,
-                    color: Colors.white,
+                    color: widget.user.userColor[1],
                     fontWeight: FontWeight.bold),
               ),
             ),

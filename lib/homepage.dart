@@ -1,5 +1,7 @@
+import 'package:bill_splitter/constants.dart';
 import 'package:bill_splitter/itempage.dart';
 import 'package:bill_splitter/models.dart';
+import 'package:bill_splitter/widgets.dart';
 import 'package:flutter/material.dart';
 
 class Home extends StatefulWidget {
@@ -18,7 +20,14 @@ class HomeState extends State<Home> {
   Widget build(BuildContext context) {
     return StateWidget(
       child: Scaffold(
-        appBar: AppBar(title: Text(title)),
+        appBar: AppBar(
+          backgroundColor: COLOR_BLACK,
+          title: Text(
+            title,
+            style: TextStyle(color: Colors.white70),
+          ),
+          centerTitle: true,
+        ),
         body: PageView(
           controller: pageController,
           onPageChanged: (newIndex) {
@@ -81,57 +90,65 @@ class userListState extends State<userList> with AutomaticKeepAliveClientMixin {
   void onCalculatePressed() {}
 
   void removeItem(BuildContext context, int index) {
-    setState(() {
-      StateInheritedWidget.of(context).removeAtUserList(index);
-    });
+    StateInheritedWidget.of(context).removeAtUserList(index);
   }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
-
+    double screenHeight = MediaQuery.of(context).size.height;
+    double screenWidth = MediaQuery.of(context).size.width;
     List<userData> nameList = StateInheritedWidget.of(context).userList;
+
+    double listHeight = screenHeight * 0.7;
+    double rowHeight = listHeight / 5;
+
+    double topPadding = 0;
+    //add in inherited widget
+    bool isBilled = StateInheritedWidget.of(context).isBilled;
 
     return Column(
       children: [
-        Expanded(
+        Padding(
+          padding: EdgeInsets.only(top: topPadding),
           child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            height: listHeight - topPadding,
             child: ListView.builder(
                 itemBuilder: (context, index) {
                   return UserTab(
                       key: UniqueKey(),
-                      name: nameList[index].name,
-                      bill: nameList[index].bill,
-                      surplus: nameList[index].getSurplus(),
-                      deleteUser: () => removeItem(context, index));
+                      user: nameList[index],
+                      deleteUser: () => removeItem(context, index),
+                      rowHeight: rowHeight);
                 },
                 itemCount: nameList.length),
           ),
         ),
+        SizedBox(height: 5),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40.0),
+          padding: const EdgeInsets.symmetric(horizontal: 30.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               FloatingActionButton.extended(
+                heroTag: 'Transactions',
+                backgroundColor: COLOR_BLACK,
                 onPressed: onCalculatePressed,
-                label: Text('Calculate', style: TextStyle(fontSize: 20)),
+                label: Text('Transactions', style: TextStyle(fontSize: 20)),
               ),
               FloatingActionButton(
+                heroTag: 'Add',
                 onPressed: () => onFloatingButtonPressed(context),
-                backgroundColor: Colors.white,
+                backgroundColor: COLOR_BLACK,
                 elevation: 10,
                 child: Icon(
                   Icons.add,
-                  color: Colors.grey,
+                  color: Colors.white,
                   size: 50,
                 ),
               ),
             ],
           ),
         ),
-        SizedBox(height: 70)
       ],
     );
   }
@@ -142,17 +159,14 @@ class userListState extends State<userList> with AutomaticKeepAliveClientMixin {
 }
 
 class UserTab extends StatefulWidget {
-  final String name;
-  final double bill;
-  final double surplus;
+  final userData user;
   final VoidCallback deleteUser;
-
+  final double rowHeight;
   const UserTab(
       {Key? key,
-      required this.name,
-      required this.bill,
-      required this.surplus,
-      required this.deleteUser})
+      required this.user,
+      required this.deleteUser,
+      required this.rowHeight})
       : super(key: key);
   @override
   UserTabState createState() => UserTabState();
@@ -160,7 +174,6 @@ class UserTab extends StatefulWidget {
 
 class UserTabState extends State<UserTab> {
   var _showCancelButton = false;
-  final double _tabHeight = 90;
 
   void enableCancelButton() {
     setState(() {
@@ -168,12 +181,35 @@ class UserTabState extends State<UserTab> {
     });
   }
 
+  void showUserPage(userData user) async {
+    var result = await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (context) => userPage(user: user)));
+    if (result != null) {
+      StateInheritedWidget.of(context).addUserPayment(user, result);
+    } else {
+      print('result is null');
+    }
+    ;
+  }
+
   @override
   Widget build(BuildContext context) {
+    double bill = widget.user.bill;
+    double paid = widget.user.paid;
+    double surplus = widget.user.getSurplus();
+
+    double verticalPadding = widget.rowHeight * 0.1;
+    double horizontalPadding = widget.rowHeight * 0.1;
+    double _tabHeight = widget.rowHeight - (2 * verticalPadding);
+
+    bool isBilled = StateInheritedWidget.of(context).isBilled;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: EdgeInsets.symmetric(
+          vertical: verticalPadding, horizontal: horizontalPadding),
       child: GestureDetector(
         onLongPress: enableCancelButton,
+        onTap: () => showUserPage(widget.user),
         child: Stack(
           children: [
             Container(
@@ -181,7 +217,8 @@ class UserTabState extends State<UserTab> {
                 height: _tabHeight,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.all(Radius.circular(50)),
+                  borderRadius:
+                      BorderRadius.all(Radius.circular(_tabHeight / 2)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.grey.withOpacity(0.2),
@@ -191,46 +228,49 @@ class UserTabState extends State<UserTab> {
                   ],
                 ),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     CircleAvatar(
-                      backgroundColor: Colors.pink.shade100,
+                      backgroundColor: widget.user.userColor[0],
                       maxRadius: _tabHeight / 2 - 10,
                       child: Text(
-                        '${widget.name.replaceAll(' ', '')[0].toUpperCase()}',
+                        '${widget.user.name.replaceAll(' ', '')[0].toUpperCase()}',
                         style: TextStyle(
-                            fontSize: 50,
-                            color: Colors.white,
+                            fontSize: 35,
+                            color: widget.user.userColor[1],
                             fontWeight: FontWeight.bold),
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8.0, vertical: 5),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Total: ',
-                            style: TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            'BDT ' + '${widget.bill}',
-                            style: TextStyle(fontSize: 28),
-                          ),
-                        ],
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          widget.user.name,
+                          style: TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Total: BDT ${bill.toStringAsFixed(2)}',
+                          style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w500),
+                        ),
+                      ],
                     ),
-                    Expanded(
+                    Visibility(
+                      visible: isBilled,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 5),
                         child: Column(
                           children: [
-                            Icon(Icons.arrow_drop_up,
-                                color: Colors.green, size: 30),
+                            surplus > 0
+                                ? Icon(Icons.arrow_drop_up,
+                                    color: COLOR_GREEN, size: 30)
+                                : Icon(Icons.arrow_drop_down,
+                                    color: COLOR_RED, size: 30),
                             Text(
-                              '${widget.surplus}',
-                              style: TextStyle(fontSize: 20),
+                              '${surplus.abs()}',
+                              style: TextStyle(fontSize: 15),
                             ),
                           ],
                         ),
@@ -295,19 +335,11 @@ class UserCardState extends State<AddUserCard> {
             child: Padding(
               padding: EdgeInsets.all(25),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                        child: Text(
-                          "Name:",
-                          style: TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    "Add New User",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
                   ),
                   SizedBox(height: 10),
                   TextField(
@@ -321,23 +353,17 @@ class UserCardState extends State<AddUserCard> {
                         fontSize: 20.0, height: 1.0, color: Colors.black),
                   ),
                   SizedBox(height: 20),
-                  GestureDetector(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey,
-                        borderRadius: BorderRadius.all(Radius.circular(30)),
-                      ),
-                      child: Padding(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                        child: Text(
-                          "Confirm",
-                          style: TextStyle(fontSize: 20, color: Colors.white),
+                  FloatingActionButton.extended(
+                      backgroundColor: COLOR_BLACK,
+                      onPressed: onConfirmPressed,
+                      label: Text(
+                        'Confirm',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
                         ),
-                      ),
-                    ),
-                    onTap: onConfirmPressed,
-                  )
+                      ))
                 ],
               ),
             ),
@@ -353,7 +379,7 @@ class UserCardState extends State<AddUserCard> {
                 alignment: Alignment.topRight,
                 child: CircleAvatar(
                     radius: 20.0,
-                    backgroundColor: Colors.red,
+                    backgroundColor: COLOR_RED,
                     child: Icon(
                       Icons.close,
                       color: Colors.white,

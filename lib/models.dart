@@ -1,3 +1,4 @@
+import 'package:bill_splitter/constants.dart';
 import 'package:flutter/material.dart';
 
 class contribution {
@@ -10,6 +11,7 @@ class userData {
   String name;
   double bill;
   double paid;
+  List<Color> userColor = [Color(0xFF383E56), Color(0xFFF69E7B)];
   List<Transaction> contributedList = [];
   List<Transaction> receivedList = [];
   userData(Key? key, this.name, this.bill, this.paid);
@@ -75,9 +77,20 @@ class StateWidgetState extends State<StateWidget> {
   List<userData> userList = [];
   List<itemData> itemList = [];
 
+  bool isBilled = true;
+
   void addToUserList(userData data) {
     setState(() {
+      data.userColor =
+          userColorList[(userList.length + 1) % userColorList.length];
       userList.add(data);
+    });
+  }
+
+  void addUserPayment(userData user, double payment) {
+    setState(() {
+      int index = userList.indexWhere((element) => element == user);
+      userList[index].paid = payment;
     });
   }
 
@@ -106,6 +119,7 @@ class StateWidgetState extends State<StateWidget> {
           transaction.user.bill += transaction.amount;
         }
       }
+      this.isBilled = true;
     });
   }
 
