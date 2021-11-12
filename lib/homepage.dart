@@ -18,47 +18,47 @@ class HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
-    return StateWidget(
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: COLOR_BLACK,
-          title: Text(
-            title,
-            style: TextStyle(color: Colors.white70),
-          ),
-          centerTitle: true,
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: COLOR_BLACK,
+        title: Text(
+          title,
+          style: TextStyle(color: Colors.white70),
         ),
-        body: PageView(
-          controller: pageController,
-          onPageChanged: (newIndex) {
-            setState(() {
-              current_page_index = newIndex;
-              switch (current_page_index) {
-                case 0:
-                  title = "BILL SPLITTER";
-                  break;
-                case 1:
-                  title = "ITEM LIST";
-                  break;
-              }
-            });
-          },
-          children: [userList(), ItemPage(pageController: pageController)],
-          physics: BouncingScrollPhysics(),
-        ),
-        resizeToAvoidBottomInset: false,
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: current_page_index,
-          items: [
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Users'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.food_bank), label: 'Items'),
-          ],
-          onTap: (newIndex) {
-            pageController.animateToPage(newIndex,
-                duration: Duration(milliseconds: 100), curve: Curves.ease);
-          },
-        ),
+        centerTitle: true,
+      ),
+      body: PageView(
+        controller: pageController,
+        onPageChanged: (newIndex) {
+          setState(() {
+            current_page_index = newIndex;
+            switch (current_page_index) {
+              case 0:
+                title = "BILL SPLITTER";
+                break;
+              case 1:
+                title = "ITEM LIST";
+                break;
+            }
+          });
+        },
+        children: [userList(), ItemPage(pageController: pageController)],
+        physics: BouncingScrollPhysics(),
+      ),
+      resizeToAvoidBottomInset: false,
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: COLOR_BLACK,
+        selectedItemColor: COLOR_GREEN,
+        unselectedItemColor: Colors.white,
+        currentIndex: current_page_index,
+        items: [
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Users'),
+          BottomNavigationBarItem(icon: Icon(Icons.food_bank), label: 'Items'),
+        ],
+        onTap: (newIndex) {
+          pageController.animateToPage(newIndex,
+              duration: Duration(milliseconds: 100), curve: Curves.ease);
+        },
       ),
     );
   }
@@ -185,7 +185,7 @@ class UserTabState extends State<UserTab> {
     var result = await Navigator.of(context)
         .push(MaterialPageRoute(builder: (context) => userPage(user: user)));
     if (result != null) {
-      StateInheritedWidget.of(context).addUserPayment(user, result);
+      //
     } else {
       print('result is null');
     }
@@ -260,16 +260,17 @@ class UserTabState extends State<UserTab> {
                     Visibility(
                       visible: isBilled,
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 5, horizontal: 10),
                         child: Column(
                           children: [
-                            surplus > 0
+                            surplus >= 0
                                 ? Icon(Icons.arrow_drop_up,
                                     color: COLOR_GREEN, size: 30)
                                 : Icon(Icons.arrow_drop_down,
                                     color: COLOR_RED, size: 30),
                             Text(
-                              '${surplus.abs()}',
+                              '${surplus.abs().toStringAsFixed(2)}',
                               style: TextStyle(fontSize: 15),
                             ),
                           ],

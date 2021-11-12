@@ -77,7 +77,7 @@ class StateWidgetState extends State<StateWidget> {
   List<userData> userList = [];
   List<itemData> itemList = [];
 
-  bool isBilled = true;
+  bool isBilled = false;
 
   void addToUserList(userData data) {
     setState(() {

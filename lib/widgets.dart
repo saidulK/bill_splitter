@@ -174,81 +174,225 @@ class userPageState extends State<userPage> {
   TextEditingController priceController = TextEditingController();
   double paidAmount = 0;
   bool amountInvalid = false;
+  List<itemData> ItemList = [];
+  List<double> BillList = [];
 
   void onConfirmPressed() {
-    Navigator.pop(context, paidAmount);
+    StateInheritedWidget.of(context).addUserPayment(widget.user, paidAmount);
+    Navigator.pop(context);
+  }
+
+  void setItemList() {
+    ItemList.clear();
+    BillList.clear();
+    for (final item in StateInheritedWidget.of(context).itemList) {
+      for (final transaction in item.contributions) {
+        if (transaction.user == widget.user) {
+          ItemList.add(item);
+          BillList.add(transaction.amount);
+        }
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.all(Radius.circular(50)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.2),
-                spreadRadius: 5,
-                blurRadius: 12, // changes position of shadow
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: EdgeInsets.all(25),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  "Add Paid Amount",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  widget.user.name,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  "BILL :${widget.user.bill}",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-                ),
-                SizedBox(height: 10),
-                TextField(
-                  keyboardType: TextInputType.number,
-                  controller: priceController,
-                  onChanged: (text) {
-                    final value = num.tryParse(priceController.text);
-                    setState(() {
-                      paidAmount = value == null
-                          ? 0
-                          : double.parse(priceController.text);
-                    });
-                  },
-                  decoration: InputDecoration(
-                    errorText: amountInvalid ? 'Invalid Input' : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30),
+    double screenHeight = MediaQuery.of(context).size.height;
+    double screenWidth = MediaQuery.of(context).size.width;
+    double bannerHeight = screenHeight * 0.2;
+    double tabHeight = screenHeight * 0.08;
+    double vPadding = 20;
+    double hPadding = 20;
+    setItemList();
+
+    return SafeArea(
+      child: Scaffold(
+        body: Column(
+          children: [
+            Container(
+              height: bannerHeight,
+              padding: EdgeInsets.symmetric(
+                  horizontal: hPadding, vertical: vPadding),
+              decoration: BoxDecoration(
+                  color: COLOR_BLACK,
+                  borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(50),
+                      bottomRight: Radius.circular(50))),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: widget.user.userColor[0],
+                    radius: bannerHeight / 2 - vPadding,
+                    child: Text(
+                      widget.user.name[0].toUpperCase(),
+                      style: TextStyle(
+                          color: widget.user.userColor[1],
+                          fontSize: 80,
+                          fontWeight: FontWeight.w500),
                     ),
                   ),
-                  style: TextStyle(
-                      fontSize: 20.0, height: 1.0, color: Colors.black),
-                ),
-                SizedBox(height: 20),
-                FloatingActionButton.extended(
-                    backgroundColor: COLOR_BLACK,
-                    onPressed: onConfirmPressed,
-                    label: Text(
-                      'Confirm',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
+                  SizedBox(
+                    width: 20,
+                  ),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.user.name,
+                        overflow: TextOverflow.fade,
+                        maxLines: 1,
+                        softWrap: false,
+                        style: TextStyle(
+                            color: widget.user.userColor[0],
+                            fontSize: 30,
+                            fontWeight: FontWeight.w500),
                       ),
-                    ))
-              ],
+                      Text(
+                        'Total Bill Amount',
+                        style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w500),
+                      ),
+                      Text(
+                        'BDT ${widget.user.bill.toStringAsFixed(2)}',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  )
+                ],
+              ),
             ),
-          ),
+            Container(
+              height: screenHeight * 0.75,
+              padding: EdgeInsets.symmetric(
+                  horizontal: hPadding, vertical: vPadding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 10.0),
+                    child: Text(
+                      'Paid Amount:',
+                      style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Container(
+                    width: screenWidth - hPadding,
+                    height: tabHeight,
+                    decoration: BoxDecoration(
+                      color: COLOR_BLACK,
+                      borderRadius: BorderRadius.all(Radius.circular(50)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.2),
+                          spreadRadius: 5,
+                          blurRadius: 12, // changes position of shadow
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Add Payment',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Container(
+                        padding: EdgeInsets.only(left: 10),
+                        height: screenHeight * .5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Item List:',
+                              style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w500),
+                            ),
+                            Flexible(
+                              child: ListView.builder(
+                                  shrinkWrap: true,
+                                  itemCount: ItemList.length,
+                                  itemBuilder: (context, index) {
+                                    return Container(
+                                      height: tabHeight,
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: 5, vertical: 5),
+                                      margin: EdgeInsets.only(
+                                          bottom: 10, right: 10, left: 10),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.all(
+                                            Radius.circular(tabHeight / 2)),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.grey.withOpacity(0.2),
+                                            spreadRadius: 5,
+                                            blurRadius:
+                                                12, // changes position of shadow
+                                          ),
+                                        ],
+                                      ),
+                                      child: Center(
+                                        child: ListTile(
+                                          leading: Text(
+                                            ItemList[index].name,
+                                            style: TextStyle(
+                                                color: Colors.black,
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                          trailing: Text(
+                                            'BDT ${BillList[index]}',
+                                            style: TextStyle(
+                                                color: Colors.black,
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                            ),
+                            SizedBox(height: 10),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: FloatingActionButton.extended(
+                        backgroundColor: COLOR_BLACK,
+                        onPressed: onConfirmPressed,
+                        label: Text(
+                          'Confirm',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        )),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
