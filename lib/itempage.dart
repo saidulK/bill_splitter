@@ -375,7 +375,9 @@ class ContributorContainerState extends State<ContributorContainer> {
     if (result != null) {
       setState(() {
         contributorListState.clear();
-
+        contributionStateInheritedWidget
+            .of(context)
+            .clearCurrentContributions();
         for (final user in result) {
           contributorListState.add(user);
           contributionStateInheritedWidget

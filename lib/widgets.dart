@@ -173,11 +173,11 @@ class userPage extends StatefulWidget {
 class userPageState extends State<userPage> {
   TextEditingController priceController = TextEditingController();
   double paidAmount = 0;
-  bool amountInvalid = false;
+  bool paymentAdded = false;
   List<itemData> ItemList = [];
   List<double> BillList = [];
 
-  void onConfirmPressed() {
+  void onBackPressed() {
     StateInheritedWidget.of(context).addUserPayment(widget.user, paidAmount);
     Navigator.pop(context);
   }
@@ -195,6 +195,28 @@ class userPageState extends State<userPage> {
     }
   }
 
+  void getUserPayment() async {
+    var result = await showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return Dialog(
+              backgroundColor: Colors.transparent, child: AddUserPayment());
+        });
+    if (result != null) {
+      setState(() {
+        paidAmount = result;
+        paymentAdded = true;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    paidAmount = widget.user.paid;
+    paymentAdded = paidAmount != 0 ? true : false;
+  }
+
   @override
   Widget build(BuildContext context) {
     double screenHeight = MediaQuery.of(context).size.height;
@@ -207,6 +229,7 @@ class userPageState extends State<userPage> {
 
     return SafeArea(
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         body: Column(
           children: [
             Container(
@@ -285,29 +308,64 @@ class userPageState extends State<userPage> {
                     ),
                   ),
                   SizedBox(height: 10),
-                  Container(
-                    width: screenWidth - hPadding,
-                    height: tabHeight,
-                    decoration: BoxDecoration(
-                      color: COLOR_BLACK,
-                      borderRadius: BorderRadius.all(Radius.circular(50)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.2),
-                          spreadRadius: 5,
-                          blurRadius: 12, // changes position of shadow
+                  Stack(
+                    children: [
+                      InkWell(
+                        onTap: () {
+                          paymentAdded ? null : getUserPayment();
+                        },
+                        child: Container(
+                          width: screenWidth - 2 * hPadding,
+                          margin: EdgeInsets.symmetric(horizontal: 10),
+                          height: tabHeight,
+                          decoration: BoxDecoration(
+                            color: COLOR_BLACK,
+                            borderRadius: BorderRadius.all(Radius.circular(50)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.2),
+                                spreadRadius: 5,
+                                blurRadius: 12, // changes position of shadow
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Text(
+                              paymentAdded
+                                  ? 'BDT ${paidAmount.toStringAsFixed(2)}'
+                                  : 'Add Payment',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
                         ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Text(
-                        'Add Payment',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold),
                       ),
-                    ),
+                      Visibility(
+                        visible: paymentAdded,
+                        child: Positioned(
+                          top: -5,
+                          right: 0,
+                          child: InkWell(
+                            onTap: () {
+                              getUserPayment();
+                            },
+                            child: Align(
+                              alignment: Alignment.topRight,
+                              child: CircleAvatar(
+                                  radius: 20.0,
+                                  backgroundColor: COLOR_RED,
+                                  child: Icon(
+                                    Icons.edit,
+                                    color: Colors.white,
+                                  )),
+                            ),
+                          ),
+                        ),
+                      )
+                    ],
+                    clipBehavior: Clip.none,
                   ),
                   SizedBox(height: 10),
                   Expanded(
@@ -325,6 +383,7 @@ class userPageState extends State<userPage> {
                                   fontSize: 18,
                                   fontWeight: FontWeight.w500),
                             ),
+                            SizedBox(height: 10),
                             Flexible(
                               child: ListView.builder(
                                   shrinkWrap: true,
@@ -333,7 +392,7 @@ class userPageState extends State<userPage> {
                                     return Container(
                                       height: tabHeight,
                                       padding: EdgeInsets.symmetric(
-                                          horizontal: 5, vertical: 5),
+                                          horizontal: 20, vertical: 10),
                                       margin: EdgeInsets.only(
                                           bottom: 10, right: 10, left: 10),
                                       decoration: BoxDecoration(
@@ -349,23 +408,27 @@ class userPageState extends State<userPage> {
                                           ),
                                         ],
                                       ),
-                                      child: Center(
-                                        child: ListTile(
-                                          leading: Text(
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          Text(
                                             ItemList[index].name,
                                             style: TextStyle(
                                                 color: Colors.black,
                                                 fontSize: 20,
-                                                fontWeight: FontWeight.bold),
+                                                fontWeight: FontWeight.w500),
                                           ),
-                                          trailing: Text(
+                                          Text(
                                             'BDT ${BillList[index]}',
                                             style: TextStyle(
                                                 color: Colors.black,
                                                 fontSize: 20,
-                                                fontWeight: FontWeight.bold),
+                                                fontWeight: FontWeight.w500),
                                           ),
-                                        ),
+                                        ],
                                       ),
                                     );
                                   }),
@@ -379,9 +442,9 @@ class userPageState extends State<userPage> {
                   Center(
                     child: FloatingActionButton.extended(
                         backgroundColor: COLOR_BLACK,
-                        onPressed: onConfirmPressed,
+                        onPressed: onBackPressed,
                         label: Text(
-                          'Confirm',
+                          'Back',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w500,
@@ -394,6 +457,106 @@ class userPageState extends State<userPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class AddUserPayment extends StatefulWidget {
+  const AddUserPayment({Key? key}) : super(key: key);
+
+  @override
+  AddUserPaymentState createState() => AddUserPaymentState();
+}
+
+class AddUserPaymentState extends State<AddUserPayment> {
+  bool priceInvalid = false;
+  final textController = TextEditingController();
+
+  void onConfirmPressed() {
+    if (!priceInvalid)
+      Navigator.pop(context, double.parse(textController.text));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      child: Stack(
+        children: [
+          Container(
+            width: 300,
+            height: 230,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.all(Radius.circular(30)),
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(25),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    "Add User Payment",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+                  ),
+                  SizedBox(height: 10),
+                  TextField(
+                    onChanged: (text) {
+                      final value = num.tryParse(textController.text);
+                      setState(() {
+                        value == null
+                            ? {priceInvalid = true}
+                            : {priceInvalid = false};
+                      });
+                    },
+                    keyboardType: TextInputType.number,
+                    controller: textController,
+                    decoration: InputDecoration(
+                      errorText: priceInvalid ? 'Invalid Price' : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    style: TextStyle(
+                        fontSize: 20.0, height: 1.0, color: Colors.black),
+                  ),
+                  SizedBox(height: 20),
+                  FloatingActionButton.extended(
+                      backgroundColor: COLOR_BLACK,
+                      onPressed: onConfirmPressed,
+                      label: Text(
+                        'Confirm',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ))
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            top: -10,
+            right: -10.0,
+            child: InkWell(
+              onTap: () {
+                Navigator.pop(context);
+              },
+              child: Align(
+                alignment: Alignment.topRight,
+                child: CircleAvatar(
+                    radius: 20.0,
+                    backgroundColor: COLOR_RED,
+                    child: Icon(
+                      Icons.close,
+                      color: Colors.white,
+                    )),
+              ),
+            ),
+          ),
+        ],
+        clipBehavior: Clip.none,
       ),
     );
   }
