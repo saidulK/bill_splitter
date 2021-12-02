@@ -2,6 +2,9 @@ import 'package:bill_splitter/constants.dart';
 import 'package:bill_splitter/itempage.dart';
 import 'package:bill_splitter/models.dart';
 import 'package:bill_splitter/widgets.dart';
+import 'package:bill_splitter/widgets/widgets.dart';
+import 'providers/providers.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 
 class Home extends StatefulWidget {
@@ -73,6 +76,9 @@ class userList extends StatefulWidget {
 }
 
 class userListState extends State<userList> with AutomaticKeepAliveClientMixin {
+  final GlobalKey<AnimatedListState> _animatedListKey =
+      GlobalKey<AnimatedListState>();
+
   void onFloatingButtonPressed(BuildContext context) async {
     var result = await showDialog(
         context: context,
@@ -82,29 +88,58 @@ class userListState extends State<userList> with AutomaticKeepAliveClientMixin {
         });
 
     if (result != null && result != "" && result != " ") {
-      StateInheritedWidget.of(context)
+      Provider.of<UserListProvider>(context, listen: false)
           .addToUserList(userData(UniqueKey(), result, 0, 0));
+      _animatedListKey.currentState!.insertItem(
+          Provider.of<UserListProvider>(context, listen: false)
+                  .userList
+                  .length -
+              1);
     }
   }
 
-  void onCalculatePressed() {}
-
-  void removeItem(BuildContext context, int index) {
-    StateInheritedWidget.of(context).removeAtUserList(index);
+  void onCalculatePressed() {
+    /*for (final item in StateInheritedWidget.of(context).itemList) {
+      print(item.name);
+      for (final transaction in item.contributions) {
+        print(transaction.user.name);
+        print(transaction.amount);
+      }
+    }*/
   }
+
+  void removeItem(BuildContext context, int index, double rowHeight) {
+    userData data =
+        Provider.of<UserListProvider>(context, listen: false).userList[index];
+    Provider.of<UserListProvider>(context, listen: false)
+        .removeAtUserList(context, index);
+    Tween<Offset> _offsetTween = Tween(begin: Offset(0, 0), end: Offset(1, 0));
+
+    _animatedListKey.currentState!.removeItem(index, (context, animation) {
+      return SizeTransition(
+        sizeFactor: animation,
+        child: UserTab(
+            key: UniqueKey(),
+            user: data,
+            deleteUser: () => () {},
+            rowHeight: rowHeight),
+      );
+    });
+  }
+
+  Tween<Offset> _offsetTween = Tween(begin: Offset(1, 0), end: Offset(0, 0));
 
   @override
   Widget build(BuildContext context) {
     double screenHeight = MediaQuery.of(context).size.height;
     double screenWidth = MediaQuery.of(context).size.width;
-    List<userData> nameList = StateInheritedWidget.of(context).userList;
 
     double listHeight = screenHeight * 0.7;
     double rowHeight = listHeight / 5;
 
     double topPadding = 0;
     //add in inherited widget
-    bool isBilled = StateInheritedWidget.of(context).isBilled;
+    bool isBilled = Provider.of<BillProvider>(context).isBilled;
 
     return Column(
       children: [
@@ -112,15 +147,26 @@ class userListState extends State<userList> with AutomaticKeepAliveClientMixin {
           padding: EdgeInsets.only(top: topPadding),
           child: Container(
             height: listHeight - topPadding,
-            child: ListView.builder(
-                itemBuilder: (context, index) {
-                  return UserTab(
-                      key: UniqueKey(),
-                      user: nameList[index],
-                      deleteUser: () => removeItem(context, index),
-                      rowHeight: rowHeight);
-                },
-                itemCount: nameList.length),
+            child: Consumer<UserListProvider>(
+              builder:
+                  (BuildContext context, UserListProvider userListProvider, _) {
+                return AnimatedList(
+                    key: _animatedListKey,
+                    itemBuilder: (context, index, animation) {
+                      return SizeTransition(
+                        sizeFactor: animation,
+                        //position: animation.drive(_offsetTween),
+                        child: UserTab(
+                            key: UniqueKey(),
+                            user: userListProvider.userList[index],
+                            deleteUser: () =>
+                                removeItem(context, index, rowHeight),
+                            rowHeight: rowHeight),
+                      );
+                    },
+                    initialItemCount: userListProvider.userList.length);
+              },
+            ),
           ),
         ),
         SizedBox(height: 5),
@@ -186,10 +232,7 @@ class UserTabState extends State<UserTab> {
         .push(MaterialPageRoute(builder: (context) => userPage(user: user)));
     if (result != null) {
       //
-    } else {
-      print('result is null');
-    }
-    ;
+    } else {}
   }
 
   @override
@@ -202,7 +245,7 @@ class UserTabState extends State<UserTab> {
     double horizontalPadding = widget.rowHeight * 0.1;
     double _tabHeight = widget.rowHeight - (2 * verticalPadding);
 
-    bool isBilled = StateInheritedWidget.of(context).isBilled;
+    bool isBilled = Provider.of<BillProvider>(context).isBilled;
 
     return Padding(
       padding: EdgeInsets.symmetric(
@@ -212,34 +255,18 @@ class UserTabState extends State<UserTab> {
         onTap: () => showUserPage(widget.user),
         child: Stack(
           children: [
-            Container(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            rectangleTab(
                 height: _tabHeight,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius:
-                      BorderRadius.all(Radius.circular(_tabHeight / 2)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      spreadRadius: 5,
-                      blurRadius: 12, // changes position of shadow
-                    ),
-                  ],
-                ),
+                borderRadius: _tabHeight / 2,
+                shadowColor: widget.user.userColor[0],
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    CircleAvatar(
+                    CircleAvatarLetter(
                       backgroundColor: widget.user.userColor[0],
-                      maxRadius: _tabHeight / 2 - 10,
-                      child: Text(
-                        '${widget.user.name.replaceAll(' ', '')[0].toUpperCase()}',
-                        style: TextStyle(
-                            fontSize: 35,
-                            color: widget.user.userColor[1],
-                            fontWeight: FontWeight.bold),
-                      ),
+                      radius: _tabHeight / 2 - 10,
+                      letter: widget.user.name,
+                      fontSize: 35,
                     ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -284,19 +311,7 @@ class UserTabState extends State<UserTab> {
               child: Positioned(
                 top: -5,
                 right: 5,
-                child: InkWell(
-                  onTap: widget.deleteUser,
-                  child: Align(
-                    alignment: Alignment.topRight,
-                    child: CircleAvatar(
-                        radius: 15.0,
-                        backgroundColor: Colors.red,
-                        child: Icon(
-                          Icons.close,
-                          color: Colors.white,
-                        )),
-                  ),
-                ),
+                child: crossButton(onTap: widget.deleteUser, radius: 15),
               ),
             ),
           ],
@@ -326,68 +341,50 @@ class UserCardState extends State<AddUserCard> {
     return Container(
       child: Stack(
         children: [
-          Container(
-            width: 300,
+          rectangleTab(
             height: 230,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.all(Radius.circular(30)),
-            ),
-            child: Padding(
-              padding: EdgeInsets.all(25),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    "Add New User",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-                  ),
-                  SizedBox(height: 10),
-                  TextField(
-                    controller: textController,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
+            borderRadius: 30,
+            h_offset: 20,
+            v_offset: 20,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  "Add New User",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+                ),
+                SizedBox(height: 10),
+                TextField(
+                  controller: textController,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
                     ),
-                    style: TextStyle(
-                        fontSize: 20.0, height: 1.0, color: Colors.black),
                   ),
-                  SizedBox(height: 20),
-                  FloatingActionButton.extended(
-                      backgroundColor: COLOR_BLACK,
-                      onPressed: onConfirmPressed,
-                      label: Text(
-                        'Confirm',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
-                        ),
-                      ))
-                ],
-              ),
+                  style: TextStyle(
+                      fontSize: 20.0, height: 1.0, color: Colors.black),
+                ),
+                SizedBox(height: 20),
+                FloatingActionButton.extended(
+                    backgroundColor: COLOR_BLACK,
+                    onPressed: onConfirmPressed,
+                    label: Text(
+                      'Confirm',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                    ))
+              ],
             ),
           ),
           Positioned(
-            top: -10,
-            right: -10.0,
-            child: InkWell(
-              onTap: () {
-                Navigator.pop(context);
-              },
-              child: Align(
-                alignment: Alignment.topRight,
-                child: CircleAvatar(
-                    radius: 20.0,
-                    backgroundColor: COLOR_RED,
-                    child: Icon(
-                      Icons.close,
-                      color: Colors.white,
-                    )),
-              ),
-            ),
-          ),
+              top: -10,
+              right: -10.0,
+              child:
+                  crossButton(onTap: () => Navigator.pop(context), radius: 20)),
         ],
         clipBehavior: Clip.none,
       ),

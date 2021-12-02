@@ -1,26 +1,10 @@
 import 'package:bill_splitter/constants.dart';
 import 'package:bill_splitter/homepage.dart';
 import 'package:flutter/material.dart';
+import 'providers/providers.dart';
+import 'providers/providers.dart';
+import 'package:provider/provider.dart';
 import 'package:bill_splitter/models.dart';
-
-Widget RectangleTab(
-    double height, double hPadding, double vPadding, Widget child) {
-  return Container(
-      padding: EdgeInsets.symmetric(horizontal: hPadding, vertical: vPadding),
-      height: height,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.all(Radius.circular(50)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 5,
-            blurRadius: 12, // changes position of shadow
-          ),
-        ],
-      ),
-      child: child);
-}
 
 class userSelection extends StatefulWidget {
   final List<userData> userList;
@@ -178,14 +162,16 @@ class userPageState extends State<userPage> {
   List<double> BillList = [];
 
   void onBackPressed() {
-    StateInheritedWidget.of(context).addUserPayment(widget.user, paidAmount);
+    Provider.of<UserListProvider>(context, listen: false)
+        .addUserPayment(widget.user, paidAmount);
     Navigator.pop(context);
   }
 
   void setItemList() {
     ItemList.clear();
     BillList.clear();
-    for (final item in StateInheritedWidget.of(context).itemList) {
+    for (final item
+        in Provider.of<ItemListProvider>(context, listen: false).itemList) {
       for (final transaction in item.contributions) {
         if (transaction.user == widget.user) {
           ItemList.add(item);
@@ -222,7 +208,7 @@ class userPageState extends State<userPage> {
     double screenHeight = MediaQuery.of(context).size.height;
     double screenWidth = MediaQuery.of(context).size.width;
     double bannerHeight = screenHeight * 0.2;
-    double tabHeight = screenHeight * 0.08;
+    double tabHeight = screenHeight * 0.05;
     double vPadding = 20;
     double hPadding = 20;
     setItemList();
@@ -290,169 +276,223 @@ class userPageState extends State<userPage> {
                 ],
               ),
             ),
-            Container(
-              height: screenHeight * 0.75,
-              padding: EdgeInsets.symmetric(
-                  horizontal: hPadding, vertical: vPadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 10.0),
-                    child: Text(
-                      'Paid Amount:',
+            Expanded(
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                    horizontal: hPadding, vertical: vPadding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(left: 10.0),
+                      child: Text(
+                        'Paid Amount:',
+                        style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    Stack(
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            paymentAdded ? null : getUserPayment();
+                          },
+                          child: Container(
+                            width: screenWidth - 2 * hPadding,
+                            margin: EdgeInsets.symmetric(horizontal: 10),
+                            height: tabHeight,
+                            decoration: BoxDecoration(
+                              color: COLOR_BLACK,
+                              borderRadius:
+                                  BorderRadius.all(Radius.circular(50)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.2),
+                                  spreadRadius: 5,
+                                  blurRadius: 12, // changes position of shadow
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Text(
+                                paymentAdded
+                                    ? 'BDT ${paidAmount.toStringAsFixed(2)}'
+                                    : 'Add Payment',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Visibility(
+                          visible: paymentAdded,
+                          child: Positioned(
+                            top: -5,
+                            right: 0,
+                            child: InkWell(
+                              onTap: () {
+                                getUserPayment();
+                              },
+                              child: Align(
+                                alignment: Alignment.topRight,
+                                child: CircleAvatar(
+                                    radius: 20.0,
+                                    backgroundColor: COLOR_RED,
+                                    child: Icon(
+                                      Icons.edit,
+                                      color: Colors.white,
+                                    )),
+                              ),
+                            ),
+                          ),
+                        )
+                      ],
+                      clipBehavior: Clip.none,
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      'Item List:',
                       style: TextStyle(
                           color: Colors.black,
                           fontSize: 18,
                           fontWeight: FontWeight.w500),
                     ),
-                  ),
-                  SizedBox(height: 10),
-                  Stack(
-                    children: [
-                      InkWell(
-                        onTap: () {
-                          paymentAdded ? null : getUserPayment();
-                        },
-                        child: Container(
-                          width: screenWidth - 2 * hPadding,
-                          margin: EdgeInsets.symmetric(horizontal: 10),
-                          height: tabHeight,
-                          decoration: BoxDecoration(
-                            color: COLOR_BLACK,
-                            borderRadius: BorderRadius.all(Radius.circular(50)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withOpacity(0.2),
-                                spreadRadius: 5,
-                                blurRadius: 12, // changes position of shadow
+                    SizedBox(height: 10),
+                    Expanded(
+                      child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: ItemList.length,
+                          itemBuilder: (context, index) {
+                            return Container(
+                              height: tabHeight,
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 10),
+                              margin:
+                                  EdgeInsets.only(top: 10, right: 10, left: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.all(
+                                    Radius.circular(tabHeight / 2)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withOpacity(0.2),
+                                    spreadRadius: 5,
+                                    blurRadius:
+                                        12, // changes position of shadow
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          child: Center(
-                            child: Text(
-                              paymentAdded
-                                  ? 'BDT ${paidAmount.toStringAsFixed(2)}'
-                                  : 'Add Payment',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Visibility(
-                        visible: paymentAdded,
-                        child: Positioned(
-                          top: -5,
-                          right: 0,
-                          child: InkWell(
-                            onTap: () {
-                              getUserPayment();
-                            },
-                            child: Align(
-                              alignment: Alignment.topRight,
-                              child: CircleAvatar(
-                                  radius: 20.0,
-                                  backgroundColor: COLOR_RED,
-                                  child: Icon(
-                                    Icons.edit,
-                                    color: Colors.white,
-                                  )),
-                            ),
-                          ),
-                        ),
-                      )
-                    ],
-                    clipBehavior: Clip.none,
-                  ),
-                  SizedBox(height: 10),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Container(
-                        padding: EdgeInsets.only(left: 10),
-                        height: screenHeight * .5,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Item List:',
-                              style: TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w500),
-                            ),
-                            SizedBox(height: 10),
-                            Flexible(
-                              child: ListView.builder(
-                                  shrinkWrap: true,
-                                  itemCount: ItemList.length,
-                                  itemBuilder: (context, index) {
-                                    return Container(
-                                      height: tabHeight,
-                                      padding: EdgeInsets.symmetric(
-                                          horizontal: 20, vertical: 10),
-                                      margin: EdgeInsets.only(
-                                          bottom: 10, right: 10, left: 10),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.all(
-                                            Radius.circular(tabHeight / 2)),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.grey.withOpacity(0.2),
-                                            spreadRadius: 5,
-                                            blurRadius:
-                                                12, // changes position of shadow
-                                          ),
-                                        ],
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            ItemList[index].name,
-                                            style: TextStyle(
-                                                color: Colors.black,
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.w500),
-                                          ),
-                                          Text(
-                                            'BDT ${BillList[index]}',
-                                            style: TextStyle(
-                                                color: Colors.black,
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.w500),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  }),
-                            ),
-                            SizedBox(height: 10),
-                          ],
-                        ),
-                      ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    ItemList[index].name,
+                                    style: TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                  Text(
+                                    'BDT ${BillList[index]}',
+                                    style: TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
                     ),
-                  ),
-                  Center(
-                    child: FloatingActionButton.extended(
-                        backgroundColor: COLOR_BLACK,
-                        onPressed: onBackPressed,
-                        label: Text(
-                          'Back',
+                    SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Text(
+                          'Contribute to:',
                           style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
-                        )),
-                  ),
-                ],
+                              color: Colors.black,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 10),
+                    Container(
+                      height: (tabHeight + 20) *
+                              widget.user.contributedList.length +
+                          20,
+                      child: ListView.builder(
+                          primary: false,
+                          shrinkWrap: true,
+                          itemCount: widget.user.contributedList.length,
+                          itemBuilder: (context, index) {
+                            return Container(
+                              height: tabHeight,
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 10),
+                              margin: EdgeInsets.only(
+                                  top: 10, bottom: 10, right: 10, left: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.all(
+                                    Radius.circular(tabHeight / 2)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withOpacity(0.2),
+                                    spreadRadius: 5,
+                                    blurRadius:
+                                        12, // changes position of shadow
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    widget
+                                        .user.contributedList[index].user.name,
+                                    style: TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                  Text(
+                                    'BDT ${widget.user.contributedList[index].amount}',
+                                    style: TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                    ),
+                    SizedBox(height: 10),
+                    Center(
+                      child: FloatingActionButton.extended(
+                          backgroundColor: COLOR_BLACK,
+                          onPressed: onBackPressed,
+                          label: Text(
+                            'Back',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                            ),
+                          )),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

@@ -1,8 +1,12 @@
+import 'package:bill_splitter/widgets/edit_button.dart';
+import 'package:flutter/material.dart';
 import 'package:bill_splitter/constants.dart';
 import 'package:bill_splitter/widgets.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 import 'package:bill_splitter/models.dart';
+import 'providers/providers.dart';
+import 'package:provider/provider.dart';
+import 'package:bill_splitter/widgets/widgets.dart';
 
 class ItemPage extends StatefulWidget {
   final String title = "ITEM LIST";
@@ -14,30 +18,27 @@ class ItemPage extends StatefulWidget {
 }
 
 class ItemPageState extends State<ItemPage> with AutomaticKeepAliveClientMixin {
-  void onCalculatePressed() {
-    StateInheritedWidget.of(context).calculateBill();
-    widget.pageController.animateToPage(0,
-        duration: Duration(milliseconds: 100), curve: Curves.ease);
-  }
-
   void onFloatingButtonPressed(BuildContext context) async {
-    List<userData> nameList = StateInheritedWidget.of(context).userList;
-
     var result = await showDialog(
         context: context,
         builder: (BuildContext context) {
-          return contributionStateWidget(
-            child: SingleChildScrollView(
-              child: Dialog(
-                  backgroundColor: Colors.transparent,
-                  child: addItemCard(nameList: nameList)),
-            ),
+          return SingleChildScrollView(
+            child: Dialog(
+                backgroundColor: Colors.transparent,
+                child: addItemCard(edit: false, index: 0)),
           );
         });
 
     if (result != null) {
-      StateInheritedWidget.of(context).addToItemList(result);
+      Provider.of<ItemListProvider>(context, listen: false)
+          .addToItemList(result, "add ");
+      Provider.of<BillProvider>(context, listen: false).calculateBill(context);
     }
+  }
+
+  void deleteItem(int index) {
+    Provider.of<ItemListProvider>(context, listen: false)
+        .removeAtItemList(index, "delete");
   }
 
   @override
@@ -45,8 +46,6 @@ class ItemPageState extends State<ItemPage> with AutomaticKeepAliveClientMixin {
     super.build(context);
 
     double rowHeight = MediaQuery.of(context).size.height * 0.15;
-    List<userData> nameList = StateInheritedWidget.of(context).userList;
-    List<itemData> itemList = StateInheritedWidget.of(context).itemList;
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -55,36 +54,37 @@ class ItemPageState extends State<ItemPage> with AutomaticKeepAliveClientMixin {
           Expanded(
             child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                child: ListView.builder(
-                    itemCount: itemList.length,
-                    itemBuilder: (context, index) {
-                      return itemRow(item: itemList[index], height: rowHeight);
-                    })),
+                child: Consumer<ItemListProvider>(
+                  builder: (context, itemListProvider, _) {
+                    return ListView.builder(
+                        itemCount: itemListProvider.itemList.length,
+                        itemBuilder: (context, index) {
+                          return itemRow(
+                              key: UniqueKey(),
+                              item: itemListProvider.itemList[index],
+                              height: rowHeight,
+                              index: index,
+                              callback: () => deleteItem(index));
+                        });
+                  },
+                )),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                FloatingActionButton.extended(
-                  backgroundColor: COLOR_BLACK,
-                  onPressed: onCalculatePressed,
-                  label: Text('Calculate', style: TextStyle(fontSize: 20)),
+            child: Center(
+              child: FloatingActionButton(
+                onPressed: () => onFloatingButtonPressed(context),
+                backgroundColor: COLOR_BLACK,
+                elevation: 10,
+                child: Icon(
+                  Icons.add,
+                  color: Colors.white,
+                  size: 50,
                 ),
-                FloatingActionButton(
-                  onPressed: () => onFloatingButtonPressed(context),
-                  backgroundColor: COLOR_BLACK,
-                  elevation: 10,
-                  child: Icon(
-                    Icons.add,
-                    color: Colors.white,
-                    size: 50,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-          SizedBox(height: 70)
+          SizedBox(height: 10)
         ],
       ),
     );
@@ -98,7 +98,14 @@ class ItemPageState extends State<ItemPage> with AutomaticKeepAliveClientMixin {
 class itemRow extends StatefulWidget {
   final itemData item;
   final double height;
-  const itemRow({Key? key, required this.item, required this.height})
+  final int index;
+  final VoidCallback callback;
+  const itemRow(
+      {Key? key,
+      required this.item,
+      required this.height,
+      required this.index,
+      required this.callback})
       : super(key: key);
 
   @override
@@ -106,77 +113,117 @@ class itemRow extends StatefulWidget {
 }
 
 class itemRowState extends State<itemRow> {
+  var _showCancelButton = false;
+
+  void onEditPressed(BuildContext context, int index) async {
+    var result = await showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return SingleChildScrollView(
+            child: Dialog(
+                backgroundColor: Colors.transparent,
+                child: addItemCard(edit: true, index: index)),
+          );
+        });
+
+    if (result != null) {
+      Provider.of<ItemListProvider>(context, listen: false)
+          .updateItemAt(index, result, "editing item");
+      Provider.of<BillProvider>(context, listen: false).calculateBill(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     double rowWidth = MediaQuery.of(context).size.width * .4;
 
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      margin: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      height: widget.height,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.all(Radius.circular(30)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 5,
-            blurRadius: 12, // changes position of shadow
+    return GestureDetector(
+      onLongPress: () => setState(() => _showCancelButton = true),
+      child: Stack(
+        children: [
+          rectangleTab(
+            height: widget.height,
+            borderRadius: widget.height / 5,
+            v_offset: 15,
+            h_offset: 20,
+            h_margin: 10,
+            v_margin: 10,
+            shadowColor:
+                widget.item.isInvalid() ? COLOR_RED : COLOR_SHADOW_GREY,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${widget.item.name}',
+                          style: TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.w500)),
+                      contributorRow(
+                          widget.item, widget.height / 2, rowWidth, 10)
+                    ]),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5.0),
+                  child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('BDT',
+                            style: TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.w500)),
+                        Text('${widget.item.price.toStringAsFixed(2)}',
+                            style: TextStyle(
+                                fontSize: 30, fontWeight: FontWeight.w500)),
+                      ]),
+                )
+              ],
+            ),
+          ),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: _showCancelButton
+                ? crossButton(onTap: () => widget.callback(), radius: 15)
+                : editButton(
+                    onTap: () => onEditPressed(context, widget.index),
+                    radius: 15),
           ),
         ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('${widget.item.name}',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500)),
-            Text('BDT ${widget.item.price}',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500))
-          ]),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            contributorRow(widget.item, widget.height / 2, rowWidth, 10),
-            Text('Edit',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500))
-          ])
-        ],
+        clipBehavior: Clip.none,
       ),
     );
   }
 }
 
 Widget contributorRow(item, rowHeight, rowWidth, verticalPadding) {
-  List<Transaction> contributions = item.contributions;
-
   return Container(
     height: rowHeight - verticalPadding,
     width: rowWidth,
     child: ListView.builder(
       scrollDirection: Axis.horizontal,
-      itemCount: contributions.length,
+      itemCount: item.contributions.length,
       itemBuilder: (context, index) {
         return Container(
-          padding: EdgeInsets.only(right: 10),
-          child: CircleAvatar(
-            backgroundColor: contributions[index].user.userColor[0],
-            radius: rowHeight / 2 - verticalPadding,
-            child: Text(
-              contributions[index].user.name[0].toUpperCase(),
-              style: TextStyle(
-                  fontSize: 20,
-                  color: contributions[index].user.userColor[1],
-                  fontWeight: FontWeight.bold),
-            ),
-          ),
-        );
+            padding: EdgeInsets.only(right: 10),
+            child: CircleAvatarLetter(
+              backgroundColor: item.contributions[index].user.userColor[0],
+              radius: rowHeight / 2 - verticalPadding,
+              letter: item.contributions[index].user.name,
+              fontSize: 20,
+              textColor: item.contributions[index].user.userColor[1],
+            ));
       },
     ),
   );
 }
 
 class addItemCard extends StatefulWidget {
-  final List<userData> nameList;
-  const addItemCard({Key? key, required this.nameList}) : super(key: key);
+  //final List<userData> nameList;
+  final bool edit;
+  final int index;
+  const addItemCard({Key? key, required this.edit, required this.index})
+      : super(key: key);
 
   @override
   addItemCardState createState() => addItemCardState();
@@ -184,14 +231,82 @@ class addItemCard extends StatefulWidget {
 
 class addItemCardState extends State<addItemCard> {
   bool equalDivide = true;
-
-  TextEditingController textController = TextEditingController();
-  TextEditingController priceController = TextEditingController();
-  //List<userData> nameList = [];
   String itemName = "";
   double itemPrice = 0;
+  List<Transaction> itemContributions = [];
   bool priceInvalid = false;
   bool nameInvalid = false;
+  TextEditingController textController = TextEditingController();
+  TextEditingController priceController = TextEditingController();
+
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance!
+        .addPostFrameCallback((_) => setInitialValues(context));
+  }
+
+  void setInitialValues(BuildContext context) {
+    setState(() {
+      if (widget.edit) {
+        itemData selectedItem =
+            Provider.of<ItemListProvider>(context, listen: false)
+                .itemList[widget.index];
+        itemName = selectedItem.name;
+        itemPrice = selectedItem.price;
+        textController.text = itemName;
+        priceController.text = '${itemPrice}';
+        itemContributions = selectedItem.contributions;
+        for (final contribution in selectedItem.contributions) {
+          if (contribution.amount != selectedItem.contributions[0].amount) {
+            equalDivide = false;
+          }
+        }
+      }
+    });
+  }
+
+  void onConfirmPressed() {
+    itemContributions =
+        Provider.of<ItemContribuitionsProvider>(context, listen: false)
+            .itemContributions;
+
+    if (itemName.isNotEmpty && itemContributions.length != 0) {
+      if (equalDivide) {
+        List<Transaction> equalContributions =
+            List<Transaction>.from(itemContributions);
+        for (final transaction in equalContributions) {
+          transaction.amount = itemPrice / equalContributions.length;
+        }
+        Navigator.pop(
+            context,
+            itemData(
+                name: itemName,
+                price: itemPrice,
+                contributions: equalContributions));
+      } else {
+        double total = 0;
+        for (final t in itemContributions) {
+          total += t.amount;
+        }
+        if (total == itemPrice) {
+          Navigator.pop(
+              context,
+              itemData(
+                  name: itemName,
+                  price: itemPrice,
+                  contributions: List<Transaction>.from(itemContributions)));
+        } else {
+          print("Show error in contributions");
+        }
+      }
+    }
+    if (itemContributions == 0) {
+      print("Add Contributors");
+    }
+    if (itemName.isEmpty) {
+      setState(() => nameInvalid = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -199,47 +314,11 @@ class addItemCardState extends State<addItemCard> {
     double verticalPadding = 10;
     double horizontalPadding = 10.0;
 
-    void onConfirmPressed() {
-      List<Transaction> contributions =
-          contributionStateInheritedWidget.of(context).currentContributions;
-
-      if (itemName.isNotEmpty && contributions.length != 0) {
-        if (equalDivide) {
-          List<Transaction> equalContributions =
-              List<Transaction>.from(contributions);
-          for (final transaction in equalContributions) {
-            transaction.amount = itemPrice / equalContributions.length;
-          }
-          Navigator.pop(
-              context,
-              itemData(
-                  name: itemName,
-                  price: itemPrice,
-                  contributions: equalContributions));
-        } else {
-          Navigator.pop(
-              context,
-              itemData(
-                  name: itemName,
-                  price: itemPrice,
-                  contributions: List<Transaction>.from(contributions)));
-        }
-      }
-      if (contributions.length == 0) {
-        print("Add Contributors");
-      }
-      if (itemName.isEmpty) {
-        setState(() => nameInvalid = true);
-      }
-    }
-
-    return Container(
-        padding: EdgeInsets.all(height * 0.05),
+    return rectangleTab(
         height: height,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.all(Radius.circular(30)),
-        ),
+        borderRadius: 30,
+        h_offset: height * 0.05,
+        v_offset: height * 0.05,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -316,7 +395,8 @@ class addItemCardState extends State<addItemCard> {
             Expanded(
                 child: ContributorContainer(
               height: height,
-              nameList: widget.nameList,
+              edit: widget.edit,
+              index: widget.index,
               equalDivide: equalDivide,
             )),
             Padding(
@@ -339,14 +419,16 @@ class addItemCardState extends State<addItemCard> {
 
 class ContributorContainer extends StatefulWidget {
   final double height;
-  final List<userData> nameList;
   final bool equalDivide;
+  final bool edit;
+  final int index;
 
   const ContributorContainer(
       {Key? key,
       required this.height,
-      required this.nameList,
-      required this.equalDivide})
+      required this.equalDivide,
+      required this.edit,
+      required this.index})
       : super(key: key);
 
   @override
@@ -354,10 +436,24 @@ class ContributorContainer extends StatefulWidget {
 }
 
 class ContributorContainerState extends State<ContributorContainer> {
-  //List of Selected contributors
-  List<userData> contributorListState = [];
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance!
+        .addPostFrameCallback((_) => setInitialContributors(context));
+  }
 
-  Color addbuttonColor = Colors.white;
+  setInitialContributors(BuildContext context) {
+    if (widget.edit) {
+      Provider.of<ItemContribuitionsProvider>(context, listen: false)
+              .itemContributions =
+          Provider.of<ItemListProvider>(context, listen: false)
+              .itemList[widget.index]
+              .contributions;
+    } else {
+      Provider.of<ItemContribuitionsProvider>(context, listen: false)
+          .clearContributions();
+    }
+  }
 
   void showContributorSelectionDialog(
       List<userData> nameList, List<userData> contributorList) async {
@@ -373,52 +469,65 @@ class ContributorContainerState extends State<ContributorContainer> {
           );
         });
     if (result != null) {
-      setState(() {
-        contributorListState.clear();
-        contributionStateInheritedWidget
-            .of(context)
-            .clearCurrentContributions();
-        for (final user in result) {
-          contributorListState.add(user);
-          contributionStateInheritedWidget
-              .of(context)
-              .addToCurrentContributions(Transaction(user, 0));
-        }
-      });
+      Provider.of<ItemContribuitionsProvider>(context, listen: false)
+          .clearContributions();
+      for (final user in result) {
+        Provider.of<ItemContribuitionsProvider>(context, listen: false)
+            .addToCurrentContributions(Transaction(user, 0));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    List<Transaction> itemContributions =
+        Provider.of<ItemContribuitionsProvider>(context, listen: false)
+            .itemContributions;
     double rowHeight = widget.height * 0.08;
     double maxHeight = 180;
-    double height =
-        ((rowHeight + 10) * contributorListState.length + 10) > maxHeight
-            ? maxHeight - 20
-            : ((rowHeight + 10) * contributorListState.length + 10);
+
+    List<userData> userList =
+        Provider.of<UserListProvider>(context, listen: false).userList;
 
     return Column(
       children: [
-        Container(
-          height: height,
-          child: ListView.builder(
-              scrollDirection: Axis.vertical,
-              shrinkWrap: true,
-              itemCount: contributorListState.length,
-              itemBuilder: (context, index) {
-                return ContributorTab(
-                    key: UniqueKey(),
-                    user: contributorListState[index],
-                    rowHeight: rowHeight,
-                    contribution: 100 / contributorListState.length,
-                    equalDivide: widget.equalDivide,
-                    index: index);
-              }),
-        ),
+        Consumer<ItemContribuitionsProvider>(builder: (BuildContext context,
+            ItemContribuitionsProvider itemContributionsProvider, _) {
+          return Container(
+              height: ((rowHeight + 10) *
+                              itemContributionsProvider
+                                  .itemContributions.length +
+                          10) >
+                      maxHeight
+                  ? maxHeight - 20
+                  : ((rowHeight + 10) *
+                          itemContributionsProvider.itemContributions.length +
+                      10),
+              child: ListView.builder(
+                  scrollDirection: Axis.vertical,
+                  shrinkWrap: true,
+                  itemCount: itemContributionsProvider.itemContributions.length,
+                  itemBuilder: (context, index) {
+                    return ContributorTab(
+                        key: UniqueKey(),
+                        user: itemContributionsProvider
+                            .itemContributions[index].user,
+                        rowHeight: rowHeight,
+                        contribution: widget.equalDivide
+                            ? 100 /
+                                itemContributionsProvider
+                                    .itemContributions.length
+                            : itemContributions[index].amount,
+                        equalDivide: widget.equalDivide,
+                        index: index);
+                  }));
+        }),
         GestureDetector(
           onTap: () {
             showContributorSelectionDialog(
-                widget.nameList, contributorListState);
+                userList,
+                Provider.of<ItemContribuitionsProvider>(context, listen: false)
+                    .contributors);
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10.0),
@@ -426,7 +535,7 @@ class ContributorContainerState extends State<ContributorContainer> {
                 height: rowHeight,
                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                 decoration: BoxDecoration(
-                  color: addbuttonColor,
+                  color: COLOR_WHITE,
                   borderRadius: BorderRadius.all(Radius.circular(30)),
                   boxShadow: [
                     BoxShadow(
@@ -523,15 +632,8 @@ class ContributorTabState extends State<ContributorTab> {
   @override
   Widget build(BuildContext context) {
     String newContribution =
-        '${contributionStateInheritedWidget.of(context).getTransactionforindex(widget.index).amount}';
-    final value = num.tryParse(controller.text);
-    setState(() {
-      newContribution = '${controller.text}';
-      contributionStateInheritedWidget
-          .of(context)
-          .addAmountAtCurrentContributions(
-              widget.index, value == null ? 0 : double.parse(controller.text));
-    });
+        '${Provider.of<ItemContribuitionsProvider>(context, listen: false).getTransactionforindex(widget.index).amount}';
+    controller.text = newContribution;
 
     return Padding(
       padding: const EdgeInsets.all(10.0),
@@ -539,7 +641,7 @@ class ContributorTabState extends State<ContributorTab> {
         padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         height: widget.rowHeight,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: COLOR_WHITE,
           borderRadius: BorderRadius.all(Radius.circular(50)),
           boxShadow: [
             BoxShadow(
@@ -595,42 +697,13 @@ class ContributorTabState extends State<ContributorTab> {
                       style: TextStyle(fontSize: 9.0, color: Colors.black),
                       onChanged: (text) {
                         final value = num.tryParse(controller.text);
-                        setState(() {
-                          newContribution = '${controller.text}';
-                          contributionStateInheritedWidget
-                              .of(context)
-                              .addAmountAtCurrentContributions(
-                                  widget.index,
-                                  value == null
-                                      ? 0
-                                      : double.parse(controller.text));
-                        });
-                      },
-                      onEditingComplete: () {
-                        final value = num.tryParse(controller.text);
-                        setState(() {
-                          newContribution = '${controller.text}';
-                          contributionStateInheritedWidget
-                              .of(context)
-                              .addAmountAtCurrentContributions(
-                                  widget.index,
-                                  value == null
-                                      ? 0
-                                      : double.parse(controller.text));
-                        });
-                      },
-                      onSaved: (text) {
-                        final value = num.tryParse(controller.text);
-                        setState(() {
-                          newContribution = '${controller.text}';
-                          contributionStateInheritedWidget
-                              .of(context)
-                              .addAmountAtCurrentContributions(
-                                  widget.index,
-                                  value == null
-                                      ? 0
-                                      : double.parse(controller.text));
-                        });
+                        Provider.of<ItemContribuitionsProvider>(context,
+                                listen: false)
+                            .addAmountAtCurrentContributions(
+                                widget.index,
+                                value == null
+                                    ? 0
+                                    : double.parse(controller.text));
                       }),
             )
           ],
