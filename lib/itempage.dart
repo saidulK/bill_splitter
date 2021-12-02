@@ -39,6 +39,7 @@ class ItemPageState extends State<ItemPage> with AutomaticKeepAliveClientMixin {
   void deleteItem(int index) {
     Provider.of<ItemListProvider>(context, listen: false)
         .removeAtItemList(index, "delete");
+    Provider.of<BillProvider>(context, listen: false).calculateBill(context);
   }
 
   @override

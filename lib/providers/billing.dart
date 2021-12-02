@@ -17,6 +17,10 @@ class BillProvider extends ChangeNotifier {
     _isBilled = billed;
   }
 
+  double get totalBill {
+    return _totalBill;
+  }
+
   void calculateBill(BuildContext context) {
     List<userData> userList =
         Provider.of<UserListProvider>(context, listen: false).userList;

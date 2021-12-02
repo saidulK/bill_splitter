@@ -134,6 +134,9 @@ class userListState extends State<userList> with AutomaticKeepAliveClientMixin {
     double screenHeight = MediaQuery.of(context).size.height;
     double screenWidth = MediaQuery.of(context).size.width;
 
+    double bannerHeight = screenHeight * 0.15;
+    double reducedListHeight = screenHeight * 0.55;
+    double reducedRowHeight = reducedListHeight * 0.7 / 5 / 0.55;
     double listHeight = screenHeight * 0.7;
     double rowHeight = listHeight / 5;
 
@@ -143,10 +146,36 @@ class userListState extends State<userList> with AutomaticKeepAliveClientMixin {
 
     return Column(
       children: [
+        Visibility(
+          visible: isBilled,
+          child: RectangleBanner(
+            backgroundColor: COLOR_BLACK,
+            height: bannerHeight,
+            borderRadius: bannerHeight * 0.15,
+            child: Container(
+              width: screenWidth,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  Text(
+                    'Total Bill Amount: ',
+                    style: TextStyle(color: COLOR_WHITE, fontSize: 20),
+                  ),
+                  Text(
+                    '${Provider.of<BillProvider>(context).totalBill.toStringAsFixed(2)}',
+                    style: TextStyle(color: COLOR_GREEN, fontSize: 50),
+                  )
+                ],
+              ),
+            ),
+          ),
+        ),
         Padding(
           padding: EdgeInsets.only(top: topPadding),
           child: Container(
-            height: listHeight - topPadding,
+            height: isBilled
+                ? reducedListHeight - topPadding
+                : listHeight - topPadding,
             child: Consumer<UserListProvider>(
               builder:
                   (BuildContext context, UserListProvider userListProvider, _) {
@@ -159,9 +188,9 @@ class userListState extends State<userList> with AutomaticKeepAliveClientMixin {
                         child: UserTab(
                             key: UniqueKey(),
                             user: userListProvider.userList[index],
-                            deleteUser: () =>
-                                removeItem(context, index, rowHeight),
-                            rowHeight: rowHeight),
+                            deleteUser: () => removeItem(context, index,
+                                isBilled ? reducedRowHeight : rowHeight),
+                            rowHeight: isBilled ? reducedRowHeight : rowHeight),
                       );
                     },
                     initialItemCount: userListProvider.userList.length);
